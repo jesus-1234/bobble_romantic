@@ -13,6 +13,7 @@ body{
     overflow:hidden;
     font-family:Arial;
 }
+
 canvas{
     background:linear-gradient(#200040,#000);
     width:100vw;
@@ -20,22 +21,31 @@ canvas{
     display:block;
     touch-action:none;
 }
+
+/* MENSAJE CENTRADO */
 #mensaje{
-    position:absolute;
-    top:20px;
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
     text-align:center;
     color:white;
-    font-size:20px;
-    text-shadow:0 0 10px pink;
-    width:100%;
+    font-size:22px;
+    text-shadow:0 0 15px pink;
+    display:none;
+    background:rgba(0,0,0,0.6);
+    padding:30px;
+    border-radius:20px;
+    box-shadow:0 0 25px #ff66ff;
 }
+
 button{
     padding:10px 20px;
-    font-size:16px;
+    font-size:18px;
     border:none;
     border-radius:10px;
     cursor:pointer;
-    margin:5px;
+    margin:10px;
 }
 </style>
 </head>
@@ -55,17 +65,19 @@ button{
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+const mensajeDiv=document.getElementById("mensaje");
+
+let RADIUS=18;
+let ROW_HEIGHT=RADIUS*1.7;
+let COLS;
 
 function resizeCanvas(){
     canvas.width=window.innerWidth;
     canvas.height=window.innerHeight;
+    COLS=Math.floor(canvas.width/(RADIUS*2));
 }
 resizeCanvas();
 window.addEventListener("resize",resizeCanvas);
-
-const RADIUS=18;
-const ROW_HEIGHT=RADIUS*1.7;
-const COLS=10;
 
 let grid=[];
 let currentBubble;
@@ -78,6 +90,7 @@ function shooterX(){ return canvas.width/2; }
 function shooterY(){ return canvas.height-60; }
 
 function createGrid(){
+    grid=[];
     for(let r=0;r<8;r++){
         grid[r]=[];
         for(let c=0;c<COLS;c++){
@@ -100,8 +113,14 @@ function drawBubble(x,y,color){
     ctx.shadowBlur=0;
 }
 
-function colToX(r,c){ return c*RADIUS*2+RADIUS+(r%2)*RADIUS; }
-function rowToY(r){ return r*ROW_HEIGHT+RADIUS; }
+function colToX(r,c){
+    let offset=(r%2)*RADIUS;
+    return c*RADIUS*2 + RADIUS + offset;
+}
+
+function rowToY(r){
+    return r*ROW_HEIGHT + RADIUS;
+}
 
 function drawGrid(){
     for(let r=0;r<grid.length;r++){
@@ -254,6 +273,20 @@ function checkWin(){
             if(cell)return;
         }
     }
+    mostrarPregunta();
+}
+
+function mostrarPregunta(){
+    gameFinished=true;
+    mensajeDiv.style.display="block";
+    mensajeDiv.innerHTML=
+        "💌 ¿Quieres ser mi novia?<br><br>"+
+        "<button onclick='respuesta(\"Sí\")'>Sí</button>"+
+        "<button onclick='respuesta(\"No\")'>No</button>";
+}
+
+function respuesta(r){
+    mensajeDiv.innerHTML="💘 Respuesta enviada con amor 💘";
 }
 
 canvas.addEventListener("touchmove",e=>{
