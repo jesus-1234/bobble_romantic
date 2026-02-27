@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Bubble Love Shooter</title>
 
 <style>
@@ -17,8 +18,8 @@ body{
 }
 canvas{
     background:linear-gradient(#200040,#000);
-    border-radius:20px;
     box-shadow:0 0 30px #ff66ff;
+    touch-action:none;
 }
 #mensaje{
     position:absolute;
@@ -28,10 +29,11 @@ canvas{
     font-size:20px;
     text-shadow:0 0 10px pink;
     width:100%;
+    z-index:10;
 }
 button{
     padding:10px 20px;
-    font-size:16px;
+    font-size:18px;
     border:none;
     border-radius:10px;
     cursor:pointer;
@@ -42,15 +44,7 @@ button{
 <body>
 
 <div id="mensaje"></div>
-<canvas id="game" width="400" height="600"></canvas>
-
-<audio id="shootSound">
-<source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_270ccf89e7.mp3?filename=laser-2-81267.mp3">
-</audio>
-
-<audio id="popSound">
-<source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8c5a2f03bb.mp3?filename=pop-94319.mp3">
-</audio>
+<canvas id="game"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 
@@ -71,6 +65,13 @@ const mensajesRomanticos=[
 
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+
+function resizeCanvas(){
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener("resize",resizeCanvas);
 
 const RADIUS=18;
 const ROW_HEIGHT=RADIUS*1.7;
@@ -122,8 +123,8 @@ function drawGrid(){
 
 function newBubble(){
     currentBubble={
-        x:200,
-        y:550,
+        x:canvas.width/2,
+        y:canvas.height-60,
         color:["red","blue","green"][Math.floor(Math.random()*3)],
         dx:0,dy:0
     };
@@ -132,7 +133,6 @@ function newBubble(){
 function shoot(){
     if(shooting||gameFinished)return;
     shooting=true;
-    document.getElementById("shootSound").play();
     currentBubble.dx=Math.cos(angle)*7;
     currentBubble.dy=Math.sin(angle)*7;
 }
@@ -171,9 +171,6 @@ function update(){
 
     particles.forEach(p=>{ p.x+=p.dx; p.y+=p.dy; p.life--; });
     particles=particles.filter(p=>p.life>0);
-
-    fallingBubbles.forEach(f=>{ f.y+=f.dy; f.dy+=0.4; });
-    fallingBubbles=fallingBubbles.filter(f=>f.y<650);
 }
 
 function snapToGrid(){
@@ -214,58 +211,11 @@ function checkMatch(row,col){
     }
 
     if(connected.length>=3){
-        document.getElementById("popSound").play();
         mostrarMensaje(mensajesRomanticos[Math.floor(Math.random()*mensajesRomanticos.length)]);
-
-        connected.forEach(([r,c])=>{
-            createParticles(colToX(r,c),rowToY(r),color);
-            grid[r][c]=null;
-        });
-
-        removeFloating();
+        connected.forEach(([r,c])=>grid[r][c]=null);
     }
 
     checkWin();
-}
-
-function removeFloating(){
-    let connected={};
-    let stack=[];
-    for(let c=0;c<COLS;c++){
-        if(grid[0][c])stack.push([0,c]);
-    }
-
-    while(stack.length){
-        let [r,c]=stack.pop();
-        let key=r+"-"+c;
-        if(connected[key])continue;
-        if(!grid[r]||!grid[r][c])continue;
-        connected[key]=true;
-
-        let even=r%2===0;
-        let n=even?
-        [[r,c-1],[r,c+1],[r-1,c-1],[r-1,c],[r+1,c-1],[r+1,c]]:
-        [[r,c-1],[r,c+1],[r-1,c],[r-1,c+1],[r+1,c],[r+1,c+1]];
-        n.forEach(x=>stack.push(x));
-    }
-
-    for(let r=0;r<grid.length;r++){
-        for(let c=0;c<COLS;c++){
-            if(grid[r][c]){
-                let key=r+"-"+c;
-                if(!connected[key]){
-                    fallingBubbles.push({x:colToX(r,c),y:rowToY(r),color:grid[r][c],dy:2});
-                    grid[r][c]=null;
-                }
-            }
-        }
-    }
-}
-
-function createParticles(x,y,color){
-    for(let i=0;i<10;i++){
-        particles.push({x,y,dx:(Math.random()-0.5)*5,dy:(Math.random()-0.5)*5,life:30,color});
-    }
 }
 
 function checkWin(){
@@ -290,22 +240,16 @@ function finalizarJuego(){
 }
 
 function respuesta(r){
-
-    let mensajeCorreo="";
-
-    if(r==="Sí"){
-        mensajeCorreo="Ella dijo que SÍ ❤️🔥";
-    }else{
-        mensajeCorreo="Solo te quiere como un buen amigo 😅💔";
-    }
+    let mensajeCorreo = r==="Sí"
+        ? "Ella dijo que SÍ ❤️🔥"
+        : "Solo te quiere como un buen amigo 😅💔";
 
     emailjs.send(SERVICE_ID,TEMPLATE_ID,{
-        mensaje: mensajeCorreo,
-        respuesta: r,
-        to_email: DESTINO
+        mensaje:mensajeCorreo,
+        to_email:DESTINO
     });
 
-    mostrarMensaje("💘 Respuesta enviada con amor 💘", true);
+    mostrarMensaje("💘 Respuesta enviada 💘",true);
 }
 
 function mostrarMensaje(texto, permanente=false){
@@ -321,18 +265,36 @@ function mostrarMensaje(texto, permanente=false){
     }
 }
 
+/* ===== CONTROLES ===== */
+
+// Mouse
 canvas.addEventListener("mousemove",e=>{
     let rect=canvas.getBoundingClientRect();
-    angle=Math.atan2(e.clientY-rect.top-550,e.clientX-rect.left-200);
+    angle=Math.atan2(
+        e.clientY-rect.top-(canvas.height-60),
+        e.clientX-rect.left-(canvas.width/2)
+    );
 });
-
 canvas.addEventListener("click",shoot);
 
+// Touch (guiar con dedo)
+canvas.addEventListener("touchmove",e=>{
+    e.preventDefault();
+    let rect=canvas.getBoundingClientRect();
+    let touch=e.touches[0];
+    angle=Math.atan2(
+        touch.clientY-rect.top-(canvas.height-60),
+        touch.clientX-rect.left-(canvas.width/2)
+    );
+});
+canvas.addEventListener("touchend",shoot);
+
 function drawPointer(){
-    let x=200,y=550;
+    let x=canvas.width/2;
+    let y=canvas.height-60;
     let dx=Math.cos(angle), dy=Math.sin(angle);
 
-    ctx.setLineDash([5,5]);
+    ctx.setLineDash([6,6]);
     ctx.beginPath();
     ctx.moveTo(x,y);
 
@@ -358,16 +320,6 @@ function loop(){
     update();
     drawBubble(currentBubble.x,currentBubble.y,currentBubble.color);
     drawPointer();
-
-    particles.forEach(p=>{
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,4,0,Math.PI*2);
-        ctx.fillStyle=p.color;
-        ctx.fill();
-    });
-
-    fallingBubbles.forEach(f=>drawBubble(f.x,f.y,f.color));
-
     requestAnimationFrame(loop);
 }
 
