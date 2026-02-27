@@ -296,9 +296,9 @@ function mostrarPregunta(){
     gameFinished=true;
     mensajeDiv.style.display="block";
     mensajeDiv.innerHTML=
-        "💌 ¿Quieres ser mi novia?<br><br>"+
+        "💌 Eres un ser misterioso y me gustaria ser parte de tu historia ¿Quieres ser mi novia?<br><br>"+
         "<button onclick='respuesta(\"Sí\")'>Sí</button>"+
-        "<button onclick='respuesta(\"No\")'>No</button>";
+        "<button onclick='respuesta(\"No\")'>No, pero eres un gran amigo para mi</button>";
 }
 
 function respuesta(r){
@@ -317,7 +317,7 @@ function respuesta(r){
     }).then(()=>console.log("Correo enviado!"),
            (err)=>console.log("Error al enviar correo:",err));
 
-    mensajeDiv.innerHTML="💘 Respuesta enviada con amor 💘";
+    mensajeDiv.innerHTML="💘 Respuesta enviada, de todas formas aprecia que estes en su vida 💘";
 }
 
 canvas.addEventListener("touchmove",e=>{
