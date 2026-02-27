@@ -62,7 +62,15 @@ button{
 <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8c5a2f03bb.mp3?filename=pop-94319.mp3">
 </audio>
 
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
 <script>
+emailjs.init("z90io_a8qbB8podKb"); // tu userID de EmailJS
+
+const SERVICE_ID="service_boff3k7"; 
+const TEMPLATE_ID="template_nlvc9lo";
+const DESTINO="mjesuskarol@gmail.com"; // tu correo
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 const mensajeDiv=document.getElementById("mensaje");
@@ -88,6 +96,14 @@ let gameFinished=false;
 
 function shooterX(){ return canvas.width/2; }
 function shooterY(){ return canvas.height-60; }
+
+const mensajesRomanticos=[
+"💖 Cada explosión me recuerda a tu sonrisa",
+"✨ Mi mundo brilla cuando pienso en ti",
+"💘 Eres más hermosa que cualquier color aquí",
+"🌸 Mi corazón late por ti",
+"💞 Cada burbuja me acerca más a ti"
+];
 
 function createGrid(){
     grid=[];
@@ -286,6 +302,21 @@ function mostrarPregunta(){
 }
 
 function respuesta(r){
+    let mensajeCorreo="";
+    if(r==="Sí"){
+        mensajeCorreo="Ella dijo que SÍ ❤️🔥";
+    }else{
+        mensajeCorreo="Solo te quiere como un buen amigo 😅💔";
+    }
+
+    // enviar correo con EmailJS
+    emailjs.send(SERVICE_ID,TEMPLATE_ID,{
+        mensaje: mensajeCorreo,
+        respuesta: r,
+        to_email: DESTINO
+    }).then(()=>console.log("Correo enviado!"),
+           (err)=>console.log("Error al enviar correo:",err));
+
     mensajeDiv.innerHTML="💘 Respuesta enviada con amor 💘";
 }
 
