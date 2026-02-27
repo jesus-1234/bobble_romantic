@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bubble Love Shooter</title>
+
+<style>
+body{
+    margin:0;
+    background: radial-gradient(circle,#1a0033,#000);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    font-family:Arial;
+}
+canvas{
+    background:linear-gradient(#200040,#000);
+    border-radius:20px;
+    box-shadow:0 0 30px #ff66ff;
+}
+#mensaje{
+    position:absolute;
+    top:20px;
+    text-align:center;
+    color:white;
+    font-size:20px;
+    text-shadow:0 0 10px pink;
+    width:100%;
+}
+button{
+    padding:10px 20px;
+    font-size:16px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    margin:5px;
+}
+</style>
+</head>
+<body>
+
+<div id="mensaje"></div>
+<canvas id="game" width="400" height="600"></canvas>
+
+<audio id="shootSound">
+<source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_270ccf89e7.mp3?filename=laser-2-81267.mp3">
+</audio>
+
+<audio id="popSound">
+<source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_8c5a2f03bb.mp3?filename=pop-94319.mp3">
+</audio>
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+<script>
+emailjs.init("z90io_a8qbB8podKb");
+
+const SERVICE_ID="service_boff3k7";
+const TEMPLATE_ID="template_nlvc9lo";
+const DESTINO="mjesuskarol@gmail.com";
+
+const mensajesRomanticos=[
+"💖 Cada explosión me recuerda a tu sonrisa",
+"✨ Mi mundo brilla cuando pienso en ti",
+"💘 Eres más hermosa que cualquier color aquí",
+"🌸 Mi corazón late por ti",
+"💞 Cada burbuja me acerca más a ti"
+];
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const RADIUS=18;
+const ROW_HEIGHT=RADIUS*1.7;
+const COLS=10;
+
+let grid=[];
+let currentBubble;
+let angle=-Math.PI/2;
+let shooting=false;
+let particles=[];
+let fallingBubbles=[];
+let gameFinished=false;
+
+function createGrid(){
+    for(let r=0;r<8;r++){
+        grid[r]=[];
+        for(let c=0;c<COLS;c++){
+            grid[r][c]=["red","blue","green"][Math.floor(Math.random()*3)];
+        }
+    }
+}
+
+function drawBubble(x,y,color){
+    ctx.beginPath();
+    ctx.arc(x,y,RADIUS,0,Math.PI*2);
+    let g=ctx.createRadialGradient(x-RADIUS/3,y-RADIUS/3,5,x,y,RADIUS);
+    g.addColorStop(0,"white");
+    g.addColorStop(0.4,color);
+    g.addColorStop(1,"black");
+    ctx.fillStyle=g;
+    ctx.shadowColor=color;
+    ctx.shadowBlur=15;
+    ctx.fill();
+    ctx.shadowBlur=0;
+}
+
+function colToX(r,c){ return c*RADIUS*2+RADIUS+(r%2)*RADIUS; }
+function rowToY(r){ return r*ROW_HEIGHT+RADIUS; }
+
+function drawGrid(){
+    for(let r=0;r<grid.length;r++){
+        for(let c=0;c<COLS;c++){
+            if(grid[r][c]){
+                drawBubble(colToX(r,c),rowToY(r),grid[r][c]);
+            }
+        }
+    }
+}
+
+function newBubble(){
+    currentBubble={
+        x:200,
+        y:550,
+        color:["red","blue","green"][Math.floor(Math.random()*3)],
+        dx:0,dy:0
+    };
+}
+
+function shoot(){
+    if(shooting||gameFinished)return;
+    shooting=true;
+    document.getElementById("shootSound").play();
+    currentBubble.dx=Math.cos(angle)*7;
+    currentBubble.dy=Math.sin(angle)*7;
+}
+
+function update(){
+    if(shooting){
+        currentBubble.x+=currentBubble.dx;
+        currentBubble.y+=currentBubble.dy;
+
+        if(currentBubble.x<=RADIUS){
+            currentBubble.x=RADIUS;
+            currentBubble.dx*=-1;
+        }
+        if(currentBubble.x>=canvas.width-RADIUS){
+            currentBubble.x=canvas.width-RADIUS;
+            currentBubble.dx*=-1;
+        }
+
+        if(currentBubble.y<=RADIUS){
+            snapToGrid();
+        }
+
+        for(let r=0;r<grid.length;r++){
+            for(let c=0;c<COLS;c++){
+                if(grid[r][c]){
+                    let dx=currentBubble.x-colToX(r,c);
+                    let dy=currentBubble.y-rowToY(r);
+                    if(Math.sqrt(dx*dx+dy*dy)<RADIUS*2-2){
+                        snapToGrid();
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    particles.forEach(p=>{ p.x+=p.dx; p.y+=p.dy; p.life--; });
+    particles=particles.filter(p=>p.life>0);
+
+    fallingBubbles.forEach(f=>{ f.y+=f.dy; f.dy+=0.4; });
+    fallingBubbles=fallingBubbles.filter(f=>f.y<650);
+}
+
+function snapToGrid(){
+    shooting=false;
+
+    let r=Math.floor(currentBubble.y/ROW_HEIGHT);
+    let c=Math.floor((currentBubble.x-(r%2)*RADIUS)/(RADIUS*2));
+
+    r=Math.max(0,r);
+    c=Math.max(0,Math.min(c,COLS-1));
+
+    if(!grid[r])grid[r]=[];
+    grid[r][c]=currentBubble.color;
+
+    checkMatch(r,c);
+    newBubble();
+}
+
+function checkMatch(row,col){
+    const color=grid[row][col];
+    let stack=[[row,col]];
+    let visited={};
+    let connected=[];
+
+    while(stack.length){
+        let [r,c]=stack.pop();
+        let key=r+"-"+c;
+        if(visited[key])continue;
+        if(!grid[r]||grid[r][c]!==color)continue;
+        visited[key]=true;
+        connected.push([r,c]);
+
+        let even=r%2===0;
+        let n=even?
+        [[r,c-1],[r,c+1],[r-1,c-1],[r-1,c],[r+1,c-1],[r+1,c]]:
+        [[r,c-1],[r,c+1],[r-1,c],[r-1,c+1],[r+1,c],[r+1,c+1]];
+        n.forEach(x=>stack.push(x));
+    }
+
+    if(connected.length>=3){
+        document.getElementById("popSound").play();
+        mostrarMensaje(mensajesRomanticos[Math.floor(Math.random()*mensajesRomanticos.length)]);
+
+        connected.forEach(([r,c])=>{
+            createParticles(colToX(r,c),rowToY(r),color);
+            grid[r][c]=null;
+        });
+
+        removeFloating();
+    }
+
+    checkWin();
+}
+
+function removeFloating(){
+    let connected={};
+    let stack=[];
+    for(let c=0;c<COLS;c++){
+        if(grid[0][c])stack.push([0,c]);
+    }
+
+    while(stack.length){
+        let [r,c]=stack.pop();
+        let key=r+"-"+c;
+        if(connected[key])continue;
+        if(!grid[r]||!grid[r][c])continue;
+        connected[key]=true;
+
+        let even=r%2===0;
+        let n=even?
+        [[r,c-1],[r,c+1],[r-1,c-1],[r-1,c],[r+1,c-1],[r+1,c]]:
+        [[r,c-1],[r,c+1],[r-1,c],[r-1,c+1],[r+1,c],[r+1,c+1]];
+        n.forEach(x=>stack.push(x));
+    }
+
+    for(let r=0;r<grid.length;r++){
+        for(let c=0;c<COLS;c++){
+            if(grid[r][c]){
+                let key=r+"-"+c;
+                if(!connected[key]){
+                    fallingBubbles.push({x:colToX(r,c),y:rowToY(r),color:grid[r][c],dy:2});
+                    grid[r][c]=null;
+                }
+            }
+        }
+    }
+}
+
+function createParticles(x,y,color){
+    for(let i=0;i<10;i++){
+        particles.push({x,y,dx:(Math.random()-0.5)*5,dy:(Math.random()-0.5)*5,life:30,color});
+    }
+}
+
+function checkWin(){
+    for(let row of grid){
+        for(let cell of row){
+            if(cell)return;
+        }
+    }
+    finalizarJuego();
+}
+
+function finalizarJuego(){
+    if(gameFinished)return;
+    gameFinished=true;
+
+    mostrarMensaje(
+        "💌 ¿Quieres ser mi novia?<br><br>"+
+        "<button onclick='respuesta(\"Sí\")'>Sí</button>"+
+        "<button onclick='respuesta(\"No\")'>No</button>",
+        true
+    );
+}
+
+function respuesta(r){
+
+    let mensajeCorreo="";
+
+    if(r==="Sí"){
+        mensajeCorreo="Ella dijo que SÍ ❤️🔥";
+    }else{
+        mensajeCorreo="Solo te quiere como un buen amigo 😅💔";
+    }
+
+    emailjs.send(SERVICE_ID,TEMPLATE_ID,{
+        mensaje: mensajeCorreo,
+        respuesta: r,
+        to_email: DESTINO
+    });
+
+    mostrarMensaje("💘 Respuesta enviada con amor 💘", true);
+}
+
+function mostrarMensaje(texto, permanente=false){
+    let div=document.getElementById("mensaje");
+    div.innerHTML=texto;
+
+    if(!permanente){
+        setTimeout(()=>{
+            if(!gameFinished){
+                div.innerHTML="";
+            }
+        },2000);
+    }
+}
+
+canvas.addEventListener("mousemove",e=>{
+    let rect=canvas.getBoundingClientRect();
+    angle=Math.atan2(e.clientY-rect.top-550,e.clientX-rect.left-200);
+});
+
+canvas.addEventListener("click",shoot);
+
+function drawPointer(){
+    let x=200,y=550;
+    let dx=Math.cos(angle), dy=Math.sin(angle);
+
+    ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+
+    for(let i=0;i<1000;i++){
+        x+=dx*4;
+        y+=dy*4;
+
+        if(x<=RADIUS||x>=canvas.width-RADIUS) dx*=-1;
+        if(y<=RADIUS) break;
+
+        ctx.lineTo(x,y);
+    }
+
+    ctx.strokeStyle="white";
+    ctx.lineWidth=2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawGrid();
+    update();
+    drawBubble(currentBubble.x,currentBubble.y,currentBubble.color);
+    drawPointer();
+
+    particles.forEach(p=>{
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,4,0,Math.PI*2);
+        ctx.fillStyle=p.color;
+        ctx.fill();
+    });
+
+    fallingBubbles.forEach(f=>drawBubble(f.x,f.y,f.color));
+
+    requestAnimationFrame(loop);
+}
+
+createGrid();
+newBubble();
+loop();
+</script>
+</body>
+</html>
